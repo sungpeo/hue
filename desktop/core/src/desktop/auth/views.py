@@ -23,6 +23,7 @@ except:
   oauth = None
 
 import cgi
+import json
 import logging
 import sys
 from datetime import datetime
@@ -44,7 +45,7 @@ from useradmin.views import ensure_home_directory, require_change_password
 from desktop.auth import forms as auth_forms
 from desktop.auth.backend import OIDCBackend
 from desktop.auth.forms import ImpersonationAuthenticationForm, OrganizationUserCreationForm, OrganizationAuthenticationForm
-from desktop.conf import OAUTH, ENABLE_ORGANIZATIONS
+from desktop.conf import OAUTH, ENABLE_ORGANIZATIONS, DWX_SAML_GROUPS
 from desktop.lib.django_util import render, login_notrequired, JsonResponse
 from desktop.lib.exceptions_renderable import PopupException
 from desktop.log.access import access_log, access_warn, last_access_map
@@ -188,6 +189,15 @@ def dt_login(request, from_modal=False):
         LOG.error('Could not create home directory for %s user %s.' % ('OIDC' if 'OIDCBackend' in backend_names else 'SAML', request.user))
     if request.user.is_authenticated() and not from_modal:
       return HttpResponseRedirect(redirect_to)
+
+    if 'SAML2Backend' in backend_names:
+      if DWX_SAML_GROUPS.get():
+        userprofile = get_profile(request.user)
+        json_data = json.loads(userprofile.json_data)
+        if json_data.get('saml_attributes', False) and \
+            json_data['saml_attributes'].get('groups', False) and \
+            not (set(DWX_SAML_GROUPS.get()) & set(json_data['saml_attributes']['groups'])):
+          request.session['samlgroup_not_permitted'] = True
 
   if is_active_directory and not is_ldap_option_selected and \
       request.method == 'POST' and request.user.username != request.POST.get('username'):

@@ -52,7 +52,7 @@ from desktop import appmanager
 from desktop.api import massaged_tags_for_json, massaged_documents_for_json, _get_docs
 from desktop.auth.backend import is_admin
 from desktop.auth.decorators import admin_required, hue_admin_required
-from desktop.conf import USE_NEW_EDITOR, HUE_LOAD_BALANCER, get_clusters, ENABLE_CONNECTORS
+from desktop.conf import USE_NEW_EDITOR, HUE_LOAD_BALANCER, get_clusters, ENABLE_CONNECTORS, DWX_SAML_GROUPS
 from desktop.lib import django_mako, fsmanager
 from desktop.lib.conf import GLOBAL_CONFIG, BoundConfig, _configs_from_dir
 from desktop.lib.config_spec_dump import ConfigSpec
@@ -63,6 +63,7 @@ from desktop.lib.thread_util import dump_traceback
 from desktop.log.access import access_log_level, access_warn, AccessInfo
 from desktop.log import set_all_debug as _set_all_debug, reset_all_debug as _reset_all_debug, get_all_debug as _get_all_debug
 from desktop.models import Settings, hue_version, _get_apps, UserPreferences
+from useradmin.models import get_profile
 
 if sys.version_info[0] > 2:
   from io import StringIO as string_io
@@ -517,6 +518,10 @@ def get_banner_message(request):
 
     if message:
       banner_message = '<div style="padding: 4px; text-align: center; background-color: #003F6C; height: 24px; color: #DBE8F1">%s</div>' % message
+
+  if request.session.get('samlgroup_not_permitted', False):
+    LOG.warn("User %s is not set in Permitted SAML Groups %s" % (request.user.username, DWX_SAML_GROUPS.get()))
+    banner_message = '<script type="text/javascript">location.href = location.href.replace(/\/hue\/.*/, "/boohoo");</script>'
 
   return banner_message
 

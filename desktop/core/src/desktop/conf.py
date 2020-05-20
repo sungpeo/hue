@@ -174,6 +174,12 @@ HUE_LOAD_BALANCER = Config(
   default=[]
 )
 
+DWX_SAML_GROUPS = Config(
+  key="dwx_saml_groups",
+  help=_('Comma separated list of group names which are required to restrict the access to the Hue server.'),
+  type=coerce_csv,
+  default=[])
+
 X_FRAME_OPTIONS = Config(
   key="http_x_frame_options",
   help=_("X-Frame-Options HTTP header value."),

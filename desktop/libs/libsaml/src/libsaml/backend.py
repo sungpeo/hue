@@ -20,6 +20,7 @@ See desktop/auth/backend.py
 
 from __future__ import absolute_import
 
+import json
 import logging
 
 from django.contrib.auth import logout as auth_logout
@@ -90,6 +91,10 @@ class SAML2Backend(_Saml2Backend):
       user.username = force_username_case(user.username)
       profile = get_profile(user)
       profile.creation_method = UserProfile.CreationMethod.EXTERNAL.name
+      json_data = json.loads(profile.json_data)
+      if attributes:
+        json_data['saml_attributes'] = attributes
+        profile.json_data = json.dumps(json_data)
       profile.save()
       user.is_superuser = is_super
       user = rewrite_user(user)
