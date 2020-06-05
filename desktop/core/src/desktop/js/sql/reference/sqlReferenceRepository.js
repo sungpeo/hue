@@ -17,10 +17,6 @@
 import ApiHelper from 'api/apiHelper';
 import { matchesType } from './typeUtils';
 import I18n from 'utils/i18n';
-import huePubSub from 'utils/huePubSub';
-import { clearUdfCache, getCachedApiUdfs, setCachedApiUdfs } from './sqlReferenceRepositoryCache';
-
-export const CLEAR_UDF_CACHE_EVENT = 'hue.clear.udf.cache';
 
 const SET_REFS = {
   impala: async () => import(/* webpackChunkName: "impala-ref" */ './impala/setReference')
@@ -73,7 +69,6 @@ const findUdfsToAdd = (apiUdfs, existingCategories) => {
   const result = {};
 
   apiUdfs.forEach(apiUdf => {
-    // TODO: Impala reports the same UDF multiple times, once per argument type.
     if (
       !result[apiUdf.name] &&
       !existingUdfNames.has(apiUdf.name.toUpperCase()) &&
@@ -87,15 +82,11 @@ const findUdfsToAdd = (apiUdfs, existingCategories) => {
 };
 
 const mergeWithApiUdfs = async (categories, connector, database) => {
-  let apiUdfs = await getCachedApiUdfs(connector, database);
-  if (!apiUdfs) {
-    apiUdfs = await ApiHelper.fetchUdfs({
-      connector: connector,
-      database: database,
-      silenceErrors: true
-    });
-    await setCachedApiUdfs(connector, database, apiUdfs);
-  }
+  const apiUdfs = await ApiHelper.fetchUdfs({
+    connector: connector,
+    database: database,
+    silenceErrors: true
+  });
 
   if (apiUdfs.length) {
     const additionalUdfs = findUdfsToAdd(apiUdfs, categories);
