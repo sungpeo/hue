@@ -22,6 +22,7 @@ import {
   cancelActiveRequest,
   simpleGet,
   simplePost,
+  simplePostAsync,
   successResponseIsError
 } from './apiUtils';
 import apiQueueManager from 'api/apiQueueManager';
@@ -30,7 +31,52 @@ import hueDebug from 'utils/hueDebug';
 import huePubSub from 'utils/huePubSub';
 import hueUtils from 'utils/hueUtils';
 import { EXECUTION_STATUS } from 'apps/notebook2/execution/executable';
-import * as URLS from './urls';
+
+const AUTOCOMPLETE_API_PREFIX = '/notebook/api/autocomplete/';
+const SAMPLE_API_PREFIX = '/notebook/api/sample/';
+const EXECUTE_API_PREFIX = '/notebook/api/execute/';
+const DOCUMENTS_API = '/desktop/api2/doc/';
+const DOCUMENTS_SEARCH_API = '/desktop/api2/docs/';
+const GET_HUE_CONFIG_URL = '/desktop/api2/get_hue_config';
+const FETCH_CONFIG = '/desktop/api2/get_config/';
+const HDFS_API_PREFIX = '/filebrowser/view=' + encodeURIComponent('/');
+const ADLS_API_PREFIX = '/filebrowser/view=' + encodeURIComponent('adl:/');
+const ABFS_API_PREFIX = '/filebrowser/view=' + encodeURIComponent('ABFS://');
+const GIT_API_PREFIX = '/desktop/api/vcs/contents/';
+const S3_API_PREFIX = '/filebrowser/view=' + encodeURIComponent('S3A://');
+const IMPALA_INVALIDATE_API = '/impala/api/invalidate';
+const CONFIG_SAVE_API = '/desktop/api/configurations/save/';
+const CONFIG_APPS_API = '/desktop/api/configurations';
+const SOLR_COLLECTIONS_API = '/indexer/api/indexes/list/';
+const SOLR_FIELDS_API = '/indexer/api/index/list/';
+const DASHBOARD_TERMS_API = '/dashboard/get_terms';
+const DASHBOARD_STATS_API = '/dashboard/get_stats';
+const FORMAT_SQL_API = '/notebook/api/format';
+const GIST_API = '/desktop/api2/gist/';
+const TOPO_URL = '/desktop/topo/';
+
+const SEARCH_API = '/desktop/api/search/entities';
+const INTERACTIVE_SEARCH_API = '/desktop/api/search/entities_interactive';
+
+const HBASE_API_PREFIX = '/hbase/api/';
+const SAVE_TO_FILE = '/filebrowser/save';
+
+const NAV_URLS = {
+  ADD_TAGS: '/metadata/api/catalog/add_tags',
+  DELETE_TAGS: '/metadata/api/catalog/delete_tags',
+  FIND_ENTITY: '/metadata/api/catalog/find_entity',
+  LIST_TAGS: '/metadata/api/catalog/list_tags',
+  UPDATE_PROPERTIES: '/metadata/api/catalog/update_properties'
+};
+
+const NAV_OPT_URLS = {
+  TOP_AGGS: '/metadata/api/optimizer/top_aggs',
+  TOP_COLUMNS: '/metadata/api/optimizer/top_columns',
+  TOP_FILTERS: '/metadata/api/optimizer/top_filters',
+  TOP_JOINS: '/metadata/api/optimizer/top_joins',
+  TOP_TABLES: '/metadata/api/optimizer/top_tables',
+  TABLE_DETAILS: '/metadata/api/optimizer/table_details'
+};
 
 export const LINK_SHARING_PERMS = {
   READ: 'read',
@@ -251,7 +297,7 @@ class ApiHelper {
    */
   saveSnippetToFile(data, options) {
     $.post(
-      URLS.SAVE_TO_FILE_API,
+      SAVE_TO_FILE,
       data,
       result => {
         if (typeof options.successCallback !== 'undefined') {
@@ -299,7 +345,7 @@ class ApiHelper {
    * @param {boolean} [options.silenceErrors]
    */
   fetchTopo(options) {
-    const url = URLS.TOPO_URL + options.location;
+    const url = TOPO_URL + options.location;
     return simpleGet(url, undefined, options);
   }
 
@@ -315,13 +361,13 @@ class ApiHelper {
   fetchStoragePreview(options) {
     let url;
     if (options.type === 's3') {
-      url = URLS.S3_API_PREFIX;
+      url = S3_API_PREFIX;
     } else if (options.type === 'adls') {
-      url = URLS.ADLS_API_PREFIX;
+      url = ADLS_API_PREFIX;
     } else if (options.type === 'abfs') {
-      url = URLS.ABFS_API_PREFIX;
+      url = ABFS_API_PREFIX;
     } else {
-      url = URLS.HDFS_API_PREFIX;
+      url = HDFS_API_PREFIX;
     }
 
     const clonedPath = options.path.concat();
@@ -370,7 +416,7 @@ class ApiHelper {
       options.pathParts.shift();
     }
     let url =
-      URLS.HDFS_API_PREFIX +
+      HDFS_API_PREFIX +
       encodeURI(options.pathParts.join('/')) +
       '?format=json&sortby=name&descending=false&pagesize=' +
       (options.pageSize || 500) +
@@ -437,7 +483,7 @@ class ApiHelper {
   fetchAdlsPath(options) {
     options.pathParts.shift();
     let url =
-      URLS.ADLS_API_PREFIX +
+      ADLS_API_PREFIX +
       encodeURI(options.pathParts.join('/')) +
       '?format=json&sortby=name&descending=false&pagesize=' +
       (options.pageSize || 500) +
@@ -503,7 +549,7 @@ class ApiHelper {
    */
   fetchAbfsPath(options) {
     let url =
-      URLS.ABFS_API_PREFIX +
+      ABFS_API_PREFIX +
       encodeURI(options.pathParts.join('/')) +
       '?format=json&sortby=name&descending=false&pagesize=' +
       (options.pageSize || 500) +
@@ -566,7 +612,7 @@ class ApiHelper {
    */
   fetchGitContents(options) {
     const url =
-      URLS.GIT_API_PREFIX +
+      GIT_API_PREFIX +
       '?path=' +
       encodeURI(options.pathParts.join('/')) +
       '&fileType=' +
@@ -630,7 +676,7 @@ class ApiHelper {
   fetchS3Path(options) {
     options.pathParts.shift(); // remove the trailing /
     let url =
-      URLS.S3_API_PREFIX +
+      S3_API_PREFIX +
       encodeURI(options.pathParts.join('/')) +
       '?format=json&sortby=name&descending=false&pagesize=' +
       (options.pageSize || 500) +
@@ -716,7 +762,7 @@ class ApiHelper {
     }
     $.ajax({
       dataType: 'json',
-      url: URLS.DASHBOARD_TERMS_API,
+      url: DASHBOARD_TERMS_API,
       type: 'POST',
       data: {
         collection: ko.mapping.toJSON({
@@ -761,7 +807,7 @@ class ApiHelper {
     }
     $.ajax({
       dataType: 'json',
-      url: URLS.DASHBOARD_STATS_API,
+      url: DASHBOARD_STATS_API,
       type: 'POST',
       data: {
         collection: ko.mapping.toJSON({
@@ -808,7 +854,7 @@ class ApiHelper {
     if (options.parent.name !== '') {
       suffix = 'getTableList/' + options.parent.name;
     }
-    const url = URLS.HBASE_API_PREFIX + suffix;
+    const url = HBASE_API_PREFIX + suffix;
     const fetchFunction = storeInCache => {
       if (options.timeout === 0) {
         assistErrorCallback(options)({ status: -1 });
@@ -905,12 +951,12 @@ class ApiHelper {
    * @param {boolean} [options.silenceErrors]
    */
   fetchConfigurations(options) {
-    simpleGet(URLS.CONFIG_APPS_API, {}, options);
+    simpleGet(CONFIG_APPS_API, {}, options);
   }
 
   saveGlobalConfiguration(options) {
     simplePost(
-      URLS.CONFIG_APPS_API,
+      CONFIG_APPS_API,
       {
         configuration: ko.mapping.toJSON(options.configuration)
       },
@@ -932,7 +978,7 @@ class ApiHelper {
    */
   saveConfiguration(options) {
     simplePost(
-      URLS.CONFIG_SAVE_API,
+      CONFIG_SAVE_API,
       {
         app: options.app,
         properties: ko.mapping.toJSON(options.properties),
@@ -961,11 +1007,11 @@ class ApiHelper {
       id += options.type;
     }
 
-    let promise = this.queueManager.getQueued(URLS.DOCUMENTS_API, id);
+    let promise = this.queueManager.getQueued(DOCUMENTS_API, id);
     const firstInQueue = typeof promise === 'undefined';
     if (firstInQueue) {
       promise = $.Deferred();
-      this.queueManager.addToQueue(promise, URLS.DOCUMENTS_API, id);
+      this.queueManager.addToQueue(promise, DOCUMENTS_API, id);
     }
 
     promise.done(options.successCallback).fail(assistErrorCallback(options));
@@ -983,7 +1029,7 @@ class ApiHelper {
     }
 
     $.ajax({
-      url: URLS.DOCUMENTS_API,
+      url: DOCUMENTS_API,
       data: data,
       traditional: true,
       success: data => {
@@ -1010,7 +1056,7 @@ class ApiHelper {
    */
   searchDocuments(options) {
     return $.ajax({
-      url: URLS.DOCUMENTS_SEARCH_API,
+      url: DOCUMENTS_SEARCH_API,
       data: {
         uuid: options.uuid,
         text: options.query,
@@ -1041,7 +1087,7 @@ class ApiHelper {
   fetchDocument(options) {
     const deferred = $.Deferred();
     const request = $.ajax({
-      url: URLS.DOCUMENTS_API,
+      url: DOCUMENTS_API,
       data: {
         uuid: options.uuid,
         data: !!options.fetchContents,
@@ -1116,7 +1162,7 @@ class ApiHelper {
    */
   createDocumentsFolder(options) {
     simplePost(
-      URLS.DOCUMENTS_API + 'mkdir',
+      DOCUMENTS_API + 'mkdir',
       {
         parent_uuid: ko.mapping.toJSON(options.parentUuid),
         name: ko.mapping.toJSON(options.name)
@@ -1136,7 +1182,7 @@ class ApiHelper {
    */
   updateDocument(options) {
     simplePost(
-      URLS.DOCUMENTS_API + 'update',
+      DOCUMENTS_API + 'update',
       {
         uuid: ko.mapping.toJSON(options.uuid),
         name: options.name
@@ -1156,7 +1202,7 @@ class ApiHelper {
    */
   uploadDocument(options) {
     $.ajax({
-      url: URLS.DOCUMENTS_API + 'import',
+      url: DOCUMENTS_API + 'import',
       type: 'POST',
       success: data => {
         if (!successResponseIsError(data)) {
@@ -1191,7 +1237,7 @@ class ApiHelper {
    */
   moveDocument(options) {
     simplePost(
-      URLS.DOCUMENTS_API + 'move',
+      DOCUMENTS_API + 'move',
       {
         source_doc_uuid: ko.mapping.toJSON(options.sourceId),
         destination_doc_uuid: ko.mapping.toJSON(options.destinationId)
@@ -1211,7 +1257,7 @@ class ApiHelper {
    */
   deleteDocument(options) {
     simplePost(
-      URLS.DOCUMENTS_API + 'delete',
+      DOCUMENTS_API + 'delete',
       {
         uuid: ko.mapping.toJSON(options.uuid),
         skip_trash: ko.mapping.toJSON(options.skipTrash || false)
@@ -1230,7 +1276,7 @@ class ApiHelper {
    */
   copyDocument(options) {
     simplePost(
-      URLS.DOCUMENTS_API + 'copy',
+      DOCUMENTS_API + 'copy',
       {
         uuid: ko.mapping.toJSON(options.uuid)
       },
@@ -1248,7 +1294,7 @@ class ApiHelper {
    */
   restoreDocument(options) {
     simplePost(
-      URLS.DOCUMENTS_API + 'restore',
+      DOCUMENTS_API + 'restore',
       {
         uuids: ko.mapping.toJSON(options.uuids)
       },
@@ -1271,7 +1317,7 @@ class ApiHelper {
     if (options.clearAll) {
       $.totalStorage(cacheIdentifier, {});
     } else {
-      let url = URLS.AUTOCOMPLETE_API_PREFIX;
+      let url = AUTOCOMPLETE_API_PREFIX;
       if (options.databaseName) {
         url += options.databaseName;
       }
@@ -1314,7 +1360,7 @@ class ApiHelper {
         data.table = options.path[1];
       }
 
-      const request = simplePost(URLS.IMPALA_INVALIDATE_API, data, options)
+      const request = simplePost(IMPALA_INVALIDATE_API, data, options)
         .done(deferred.resolve)
         .fail(deferred.reject);
 
@@ -1322,6 +1368,36 @@ class ApiHelper {
     }
 
     return deferred.resolve().promise();
+  }
+
+  /**
+   * @param {Object} options
+   * @param {Connector} options.connector
+   * @param {string} [options.database]
+   * @param {boolean} [options.silenceErrors]
+   *
+   * @return {Promise}
+   */
+  async fetchUdfs(options) {
+    let url = AUTOCOMPLETE_API_PREFIX;
+    if (options.database) {
+      url += '/' + options.database;
+    }
+
+    const data = {
+      notebook: {},
+      snippet: JSON.stringify({
+        type: options.connector.id
+      }),
+      operation: 'functions'
+    };
+
+    try {
+      const response = await simplePostAsync(url, data, options);
+      return (response && response.functions) || [];
+    } catch (err) {
+      return [];
+    }
   }
 
   /**
@@ -1343,8 +1419,7 @@ class ApiHelper {
 
     const request = $.ajax({
       type: 'POST',
-      url:
-        URLS.AUTOCOMPLETE_API_PREFIX + (isQuery ? options.path.slice(1) : options.path).join('/'),
+      url: AUTOCOMPLETE_API_PREFIX + (isQuery ? options.path.slice(1) : options.path).join('/'),
       data: {
         notebook: {},
         snippet: ko.mapping.toJSON({
@@ -1823,7 +1898,7 @@ class ApiHelper {
    */
   async executeStatement(options) {
     const executable = options.executable;
-    const url = URLS.EXECUTE_API_PREFIX + executable.executor.connector().dialect;
+    const url = EXECUTE_API_PREFIX + executable.executor.connector().dialect;
 
     const promise = new Promise(async (resolve, reject) => {
       let data = {};
@@ -1920,7 +1995,7 @@ class ApiHelper {
       description: options.description
     };
     return new Promise((resolve, reject) => {
-      simplePost(URLS.GIST_API + 'create', data, options)
+      simplePost(GIST_API + 'create', data, options)
         .done(response => {
           resolve(response.link);
         })
@@ -2155,7 +2230,7 @@ class ApiHelper {
     };
 
     simplePost(
-      URLS.SAMPLE_API_PREFIX + options.path.join('/'),
+      SAMPLE_API_PREFIX + options.path.join('/'),
       {
         notebook: {},
         snippet: JSON.stringify({
@@ -2258,7 +2333,7 @@ class ApiHelper {
    */
   fetchNavigatorMetadata(options) {
     const deferred = $.Deferred();
-    let url = URLS.NAV_API.FIND_ENTITY;
+    let url = NAV_URLS.FIND_ENTITY;
 
     if (options.path.length === 1) {
       url += '?type=database&name=' + options.path[0];
@@ -2327,7 +2402,7 @@ class ApiHelper {
     if (options.deletedCustomMetadataKeys) {
       data.deletedCustomMetadataKeys = ko.mapping.toJSON(options.deletedCustomMetadataKeys);
     }
-    return simplePost(URLS.NAV_API.UPDATE_PROPERTIES, data, options);
+    return simplePost(NAV_URLS.UPDATE_PROPERTIES, data, options);
   }
 
   /**
@@ -2341,7 +2416,7 @@ class ApiHelper {
   fetchAllNavigatorTags(options) {
     const deferred = $.Deferred();
 
-    const request = simplePost(URLS.NAV_API.LIST_TAGS, undefined, {
+    const request = simplePost(NAV_URLS.LIST_TAGS, undefined, {
       silenceErrors: options.silenceErrors,
       successCallback: data => {
         if (data && data.tags) {
@@ -2357,14 +2432,14 @@ class ApiHelper {
   }
 
   addNavTags(entityId, tags) {
-    return simplePost(URLS.NAV_API.ADD_TAGS, {
+    return simplePost(NAV_URLS.ADD_TAGS, {
       id: ko.mapping.toJSON(entityId),
       tags: ko.mapping.toJSON(tags)
     });
   }
 
   deleteNavTags(entityId, tags) {
-    return simplePost(URLS.NAV_API.DELETE_TAGS, {
+    return simplePost(NAV_URLS.DELETE_TAGS, {
       id: ko.mapping.toJSON(entityId),
       tags: ko.mapping.toJSON(tags)
     });
@@ -2514,7 +2589,7 @@ class ApiHelper {
 
   async fetchHueConfigAsync(options) {
     return new Promise((resolve, reject) => {
-      $.get(URLS.GET_HUE_CONFIG_API)
+      $.get(GET_HUE_CONFIG_URL)
         .done(response => {
           if (!response && response.status === -1) {
             reject(response.message);
@@ -2527,12 +2602,12 @@ class ApiHelper {
   }
 
   getClusterConfig(data) {
-    return $.post(URLS.FETCH_CONFIG_API, data);
+    return $.post(FETCH_CONFIG, data);
   }
 
   fetchHueDocsInteractive(query) {
     const deferred = $.Deferred();
-    const request = $.post(URLS.INTERACTIVE_SEARCH_API, {
+    const request = $.post(INTERACTIVE_SEARCH_API, {
       query_s: ko.mapping.toJSON(query),
       limit: 50,
       sources: '["documents"]'
@@ -2550,7 +2625,7 @@ class ApiHelper {
 
   fetchNavEntitiesInteractive(options) {
     const deferred = $.Deferred();
-    const request = $.post(URLS.INTERACTIVE_SEARCH_API, {
+    const request = $.post(INTERACTIVE_SEARCH_API, {
       query_s: ko.mapping.toJSON(options.query),
       field_facets: ko.mapping.toJSON(options.facets || []),
       limit: 50,
@@ -2571,7 +2646,7 @@ class ApiHelper {
     const deferred = $.Deferred();
 
     const request = simplePost(
-      URLS.SEARCH_API,
+      SEARCH_API,
       {
         query_s: ko.mapping.toJSON(options.query),
         limit: options.limit || 100,
@@ -2598,7 +2673,7 @@ class ApiHelper {
     const deferred = $.Deferred();
 
     const request = simplePost(
-      URLS.FORMAT_SQL_API,
+      FORMAT_SQL_API,
       {
         statements: options.statements
       },
@@ -2625,7 +2700,7 @@ class ApiHelper {
     const deferred = $.Deferred();
 
     const request = simplePost(
-      URLS.GIST_API + 'create',
+      GIST_API + 'create',
       {
         statement: options.statement,
         doc_type: options.doc_type,
