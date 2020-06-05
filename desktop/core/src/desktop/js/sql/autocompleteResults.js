@@ -29,10 +29,9 @@ import { DIALECT } from 'apps/notebook2/snippet';
 import { cancelActiveRequest } from 'api/apiUtils';
 import { findBrowserConnector, getRootFilePath } from 'utils/hueConfig';
 import {
-  findUdf,
-  getArgumentTypesForUdf,
-  getUdfsWithReturnTypes,
-  getReturnTypesForUdf,
+  findFunction,
+  getArgumentTypes,
+  getFunctionsWithReturnTypes,
   getSetOptions
 } from './reference/sqlReferenceRepository';
 
@@ -478,7 +477,7 @@ class AutocompleteResults {
 
     self.handleKeywords(colRefDeferred);
     self.handleIdentifiers();
-    self.activeDeferrals.push(self.handleColumnAliases());
+    self.handleColumnAliases();
     self.handleCommonTableExpressions();
     self.activeDeferrals.push(self.handleOptions());
     self.activeDeferrals.push(self.handleFunctions(colRefDeferred));
@@ -508,7 +507,7 @@ class AutocompleteResults {
 
   async adjustForUdfArgument() {
     return new Promise(async resolve => {
-      const foundArgumentTypes = (await getArgumentTypesForUdf(
+      const foundArgumentTypes = (await getArgumentTypes(
         this.snippet.connector(),
         this.parseResult.udfArgument.name,
         this.parseResult.udfArgument.position
@@ -666,10 +665,8 @@ class AutocompleteResults {
 
   handleColumnAliases() {
     const self = this;
-    const deferrals = [];
-    const columnAliasesDeferred = $.Deferred();
-    const columnAliasSuggestions = [];
     if (self.parseResult.suggestColumnAliases) {
+      const columnAliasSuggestions = [];
       self.parseResult.suggestColumnAliases.forEach(columnAlias => {
         const type =
           columnAlias.types && columnAlias.types.length === 1 ? columnAlias.types[0] : 'T';
@@ -681,21 +678,6 @@ class AutocompleteResults {
             popular: ko.observable(false),
             details: columnAlias
           });
-        } else if (type === 'UDFREF') {
-          const udfDeferred = $.Deferred();
-          deferrals.push(udfDeferred);
-          getReturnTypesForUdf(self.snippet.connector(), columnAlias.udfRef)
-            .then(types => {
-              const resolvedType = types.length === 1 ? types[0] : 'T';
-              columnAliasSuggestions.push({
-                value: columnAlias.name,
-                meta: resolvedType,
-                category: CATEGORIES.COLUMN,
-                popular: ko.observable(false),
-                details: columnAlias
-              });
-            })
-            .finally(udfDeferred.resolve);
         } else {
           columnAliasSuggestions.push({
             value: columnAlias.name,
@@ -706,14 +688,8 @@ class AutocompleteResults {
           });
         }
       });
+      self.appendEntries(columnAliasSuggestions);
     }
-    $.when.apply($, deferrals).always(() => {
-      if (columnAliasSuggestions.length) {
-        self.appendEntries(columnAliasSuggestions);
-      }
-      columnAliasesDeferred.resolve();
-    });
-    return columnAliasesDeferred;
   }
 
   handleCommonTableExpressions() {
@@ -772,57 +748,44 @@ class AutocompleteResults {
       const functionSuggestions = [];
       if (
         self.parseResult.suggestFunctions.types &&
-        (self.parseResult.suggestFunctions.types[0] === 'COLREF' ||
-          self.parseResult.suggestFunctions.types[0] === 'UDFREF')
+        self.parseResult.suggestFunctions.types[0] === 'COLREF'
       ) {
         initLoading(self.loadingFunctions, colRefDeferred);
 
-        const addUdfsOfTypes = async types => {
-          const functionsToSuggest = await getUdfsWithReturnTypes(
-            self.snippet.connector(),
-            types,
-            self.parseResult.suggestAggregateFunctions || false,
-            self.parseResult.suggestAnalyticFunctions || false
-          );
+        colRefDeferred
+          .done(async colRef => {
+            const functionsToSuggest = await getFunctionsWithReturnTypes(
+              self.snippet.connector(),
+              [colRef.type.toUpperCase()],
+              self.parseResult.suggestAggregateFunctions || false,
+              self.parseResult.suggestAnalyticFunctions || false
+            );
 
-          const firstType = types[0].toUpperCase();
-
-          Object.keys(functionsToSuggest).forEach(name => {
-            functionSuggestions.push({
-              category: CATEGORIES.UDF,
-              value: name + '()',
-              meta: functionsToSuggest[name].returnTypes.join('|'),
-              weightAdjust:
-                firstType !== 'T' &&
-                functionsToSuggest[name].returnTypes.some(otherType => otherType === firstType)
-                  ? 1
-                  : 0,
-              popular: ko.observable(false),
-              details: functionsToSuggest[name]
+            Object.keys(functionsToSuggest).forEach(name => {
+              functionSuggestions.push({
+                category: CATEGORIES.UDF,
+                value: name + '()',
+                meta: functionsToSuggest[name].returnTypes.join('|'),
+                weightAdjust:
+                  colRef.type.toUpperCase() !== 'T' &&
+                  functionsToSuggest[name].returnTypes.some(otherType => {
+                    return otherType === colRef.type.toUpperCase();
+                  })
+                    ? 1
+                    : 0,
+                popular: ko.observable(false),
+                details: functionsToSuggest[name]
+              });
             });
-          });
 
-          self.appendEntries(functionSuggestions);
-          functionsDeferred.resolve();
-        };
-
-        if (self.parseResult.suggestFunctions.types[0] === 'COLREF') {
-          colRefDeferred
-            .done(async colRef => {
-              await addUdfsOfTypes([colRef.type.toUpperCase()]);
-            })
-            .fail(functionsDeferred.reject);
-        } else {
-          getReturnTypesForUdf(self.snippet.connector(), self.parseResult.suggestFunctions.udfRef)
-            .then(addUdfsOfTypes)
-            .catch(async () => {
-              await addUdfsOfTypes(['T']);
-            });
-        }
+            self.appendEntries(functionSuggestions);
+            functionsDeferred.resolve();
+          })
+          .fail(functionsDeferred.reject);
       } else {
         const types = self.parseResult.suggestFunctions.types || ['T'];
 
-        getUdfsWithReturnTypes(
+        getFunctionsWithReturnTypes(
           self.snippet.connector(),
           types,
           self.parseResult.suggestAggregateFunctions || false,
@@ -1029,25 +992,22 @@ class AutocompleteResults {
           });
         };
 
-        const applyTypes = types => {
-          suggestColumns.tables.forEach(table => {
-            columnDeferrals.push(self.addColumns(table, types, columnSuggestions));
-          });
-          waitForCols();
-        };
-
         if (suggestColumns.types && suggestColumns.types[0] === 'COLREF') {
           colRefDeferred.done(colRef => {
-            applyTypes([colRef.type.toUpperCase()]);
-          });
-        } else if (suggestColumns.types && suggestColumns.types[0] === 'UDFREF') {
-          getReturnTypesForUdf(self.snippet.connector(), suggestColumns.udfRef)
-            .then(applyTypes)
-            .catch(() => {
-              applyTypes(['T']);
+            suggestColumns.tables.forEach(table => {
+              columnDeferrals.push(
+                self.addColumns(table, [colRef.type.toUpperCase()], columnSuggestions)
+              );
             });
+            waitForCols();
+          });
         } else {
-          applyTypes(suggestColumns.types || ['T']);
+          suggestColumns.tables.forEach(table => {
+            columnDeferrals.push(
+              self.addColumns(table, suggestColumns.types || ['T'], columnSuggestions)
+            );
+          });
+          waitForCols();
         }
       } else {
         columnsDeferred.reject();
@@ -1804,7 +1764,7 @@ class AutocompleteResults {
                         clean = clean.replace(substitution.replace, substitution.with);
                       });
 
-                      value.function = await findUdf(
+                      value.function = await findFunction(
                         self.snippet.connector(),
                         value.aggregateFunction
                       );
