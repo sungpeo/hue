@@ -25,7 +25,7 @@ describe('elasticsearchAutocompleteParser.js locations', () => {
   });
 
   const assertAutoComplete = testDefinition => {
-    const debug = false;
+    const debug = true;
     expect(
       elasticsearchAutocompleteParser.parseSql(
         testDefinition.beforeCursor,

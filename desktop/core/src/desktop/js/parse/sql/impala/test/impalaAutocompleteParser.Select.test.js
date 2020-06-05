@@ -4027,14 +4027,10 @@ describe('impalaAutocompleteParser.js SELECT statements', () => {
         containsKeywords: ['CASE'],
         expectedResult: {
           lowerCase: false,
-          suggestFunctions: {
-            types: ['UDFREF'],
-            udfRef: 'years_add'
-          },
+          suggestFunctions: { types: ['TIMESTAMP'] },
           suggestColumns: {
             source: 'select',
-            types: ['UDFREF'],
-            udfRef: 'years_add',
+            types: ['TIMESTAMP'],
             tables: [{ identifierChain: [{ name: 'testTable' }] }]
           }
         }
@@ -5518,7 +5514,7 @@ describe('impalaAutocompleteParser.js SELECT statements', () => {
           suggestFunctions: {},
           suggestAggregateFunctions: { tables: [{ identifierChain: [{ name: 'testTable' }] }] },
           suggestColumns: { tables: [{ identifierChain: [{ name: 'testTable' }] }] },
-          suggestColumnAliases: [{ name: 'boo', udfRef: 'count', types: ['UDFREF'] }]
+          suggestColumnAliases: [{ name: 'boo', types: ['BIGINT'] }]
         }
       });
     });

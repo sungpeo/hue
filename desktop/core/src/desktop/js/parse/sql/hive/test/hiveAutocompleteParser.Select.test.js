@@ -983,7 +983,7 @@ describe('hiveAutocompleteParser.js SELECT statements', () => {
           subQueries: [
             {
               alias: 'ttaSum',
-              columns: [{ alias: 'total', type: 'UDFREF', udfRef: 'sum' }]
+              columns: [{ alias: 'total', type: 'DOUBLE' }]
             }
           ],
           suggestIdentifiers: [
@@ -4107,8 +4107,7 @@ describe('hiveAutocompleteParser.js SELECT statements', () => {
           lowerCase: false,
           suggestColumns: {
             source: 'where',
-            types: ['UDFREF'],
-            udfRef: 'cos',
+            types: ['DOUBLE'],
             identifierChain: [{ name: 'bla' }],
             tables: [{ identifierChain: [{ name: 'tbl2' }] }]
           }
@@ -5930,7 +5929,7 @@ describe('hiveAutocompleteParser.js SELECT statements', () => {
           suggestFunctions: {},
           suggestAggregateFunctions: { tables: [{ identifierChain: [{ name: 'testTable' }] }] },
           suggestColumns: { tables: [{ identifierChain: [{ name: 'testTable' }] }] },
-          suggestColumnAliases: [{ name: 'boo', udfRef: 'count', types: ['UDFREF'] }]
+          suggestColumnAliases: [{ name: 'boo', types: ['BIGINT'] }]
         }
       });
     });
@@ -7725,7 +7724,7 @@ describe('hiveAutocompleteParser.js SELECT statements', () => {
                   columns: [
                     { identifierChain: [{ name: 'testTable' }, { name: 'a' }], type: 'COLREF' },
                     { identifierChain: [{ name: 'testTable' }, { name: 'b' }], type: 'COLREF' },
-                    { alias: 'bla', type: 'UDFREF', udfRef: 'abs' }
+                    { alias: 'bla', type: 'DOUBLE' }
                   ]
                 }
               ]

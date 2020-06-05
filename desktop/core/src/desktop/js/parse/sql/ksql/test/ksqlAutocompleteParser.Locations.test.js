@@ -25,7 +25,7 @@ describe('ksqlAutocompleteParser.js locations', () => {
   });
 
   const assertAutoComplete = testDefinition => {
-    const debug = false;
+    const debug = true;
     expect(
       ksqlAutocompleteParser.parseSql(
         testDefinition.beforeCursor,

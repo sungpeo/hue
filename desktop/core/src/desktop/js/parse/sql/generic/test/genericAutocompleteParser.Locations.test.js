@@ -25,7 +25,7 @@ describe('genericAutocompleteParser.js locations', () => {
   });
 
   const assertAutoComplete = testDefinition => {
-    const debug = false;
+    const debug = true;
     expect(
       genericAutocompleteParser.parseSql(
         testDefinition.beforeCursor,
