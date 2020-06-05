@@ -17,11 +17,6 @@
 import { SqlFunctions } from 'sql/sqlFunctions';
 import { matchesType } from 'sql/reference/typeUtils';
 import stringDistance from 'sql/stringDistance';
-import {
-  applyTypeToSuggestions,
-  getSubQuery,
-  valueExpressionSuggest
-} from 'parse/sql/sqlParseUtils';
 
 const identifierEquals = (a, b) =>
   a &&
@@ -293,9 +288,39 @@ const initSqlParser = function(parser) {
     parser.yy.result.suggestJoins = details || {};
   };
 
-  parser.valueExpressionSuggest = valueExpressionSuggest.bind(null, parser);
+  parser.valueExpressionSuggest = function(oppositeValueExpression, operator) {
+    if (oppositeValueExpression && oppositeValueExpression.columnReference) {
+      parser.suggestValues();
+      parser.yy.result.colRef = { identifierChain: oppositeValueExpression.columnReference };
+    }
+    parser.suggestColumns();
+    parser.suggestFunctions();
+    let keywords = [
+      { value: 'CASE', weight: 450 },
+      { value: 'FALSE', weight: 450 },
+      { value: 'NULL', weight: 450 },
+      { value: 'TRUE', weight: 450 }
+    ];
+    if (typeof oppositeValueExpression === 'undefined' || typeof operator === 'undefined') {
+      keywords = keywords.concat(['EXISTS', 'NOT']);
+    }
+    if (oppositeValueExpression && oppositeValueExpression.types[0] === 'NUMBER') {
+      parser.applyTypeToSuggestions(['NUMBER']);
+    }
+    parser.suggestKeywords(keywords);
+  };
 
-  parser.applyTypeToSuggestions = applyTypeToSuggestions.bind(null, parser);
+  parser.applyTypeToSuggestions = function(types) {
+    if (types[0] === 'BOOLEAN') {
+      return;
+    }
+    if (parser.yy.result.suggestFunctions && !parser.yy.result.suggestFunctions.types) {
+      parser.yy.result.suggestFunctions.types = types;
+    }
+    if (parser.yy.result.suggestColumns && !parser.yy.result.suggestColumns.types) {
+      parser.yy.result.suggestColumns.types = types;
+    }
+  };
 
   parser.findCaseType = function(whenThenList) {
     const types = {};
@@ -1017,7 +1042,33 @@ const initSqlParser = function(parser) {
     }
   };
 
-  parser.getSubQuery = getSubQuery;
+  parser.getSubQuery = function(cols) {
+    const columns = [];
+    cols.selectList.forEach(col => {
+      const result = {};
+      if (col.alias) {
+        result.alias = col.alias;
+      }
+      if (col.valueExpression && col.valueExpression.columnReference) {
+        result.identifierChain = col.valueExpression.columnReference;
+      } else if (col.asterisk) {
+        result.identifierChain = [{ asterisk: true }];
+      }
+      if (
+        col.valueExpression &&
+        col.valueExpression.types &&
+        col.valueExpression.types.length === 1
+      ) {
+        result.type = col.valueExpression.types[0];
+      }
+
+      columns.push(result);
+    });
+
+    return {
+      columns: columns
+    };
+  };
 
   parser.addTablePrimary = function(ref) {
     if (typeof parser.yy.latestTablePrimaries === 'undefined') {
