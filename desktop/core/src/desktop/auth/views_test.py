@@ -602,8 +602,6 @@ class TestMultipleBackendLoginNoHadoop(object):
       finish()
 
   def test_login(self):
-    ldap_access.CACHED_LDAP_CONN = LdapTestConnection()
-
     response = self.c.get('/hue/accounts/login/')
     assert_equal(200, response.status_code, "Expected ok status.")
     assert_true(response.context[0]['first_login_ever'])
