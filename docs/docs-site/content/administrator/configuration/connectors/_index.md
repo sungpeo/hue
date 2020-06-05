@@ -457,25 +457,16 @@ Vertica’s JDBC client drivers can be downloaded here: [Vertica JDBC Client Dri
 
 ### Apache Phoenix
 
-The official Python [Phoenix dialect](https://github.com/apache/phoenix-queryserver/tree/master/python/phoenixdb) is already shipped in Hue and below is optional. If you want to update it yourself to the very latest:
+The dialect should be added to the Python system or Hue Python virtual environment:
 
-    git clone https://github.com/apache/phoenix-queryserver.git
-    $HUE/build/env/bin/pip install file:///home/gehue/phoenix-queryserver/python/phoenixdb
+    ./build/env/bin/pip install pyPhoenix
 
 Then give Hue the information about the database source:
 
     [[[phoenix]]]
     name=HBase Phoenix
     interface=sqlalchemy
-    options='{"url": "phoenix://sql-phoenix.gethue.com:8765/"}'
-
-If using security:
-
-    [[[phoenix]]]
-    name=HBase Phoenix
-    interface=sqlalchemy
-    options='{"url": "phoenix://sql-phoenix.gethue.com:8765", "tls": true, "connect_args": {"authentication": "SPNEGO", "verify": false }}'
-
+    options='{"url": "phoenix://sql-phoenix-1.gce.cloudera.com:8765/"}'
 
 **Notes**
 
@@ -496,10 +487,24 @@ If using security:
     0: jdbc:phoenix:> select * from "analytics_demo" where pk = "domain.0" limit 5;
     ```
 
-3. Phoenix follows Apache Calcite. Feel free to help improve the [SQL autocomplete](https://docs.gethue.com/developer/parsers/) support for it.
+3. Phoenix follows Apache Calcite. Feel free to help improve the SQL autocomplete support for it.
 
-4. The UI (and the underlying SQLAlchemy API) cannot distinguish between 'ANY namespace' and 'empty/Default' namespace
+4. Skip the semicolon ‘;’.
 
+5. Not tested yet with security.
+
+6. List of some of the known issues are listed on the [Phoenix SqlAlchemy](https://github.com/Pirionfr/pyPhoenix#known-issues) connector page.
+
+Alternative:
+
+The Phoenix JDBC client driver is bundled with the Phoenix binary and source release artifacts, which can be downloaded here: [Apache Phoenix Downloads](https://phoenix.apache.org/download.html).
+
+    [[[phoenix]]]
+    name=Phoenix JDBC
+    interface=jdbc
+    options='{"url": "jdbc:phoenix:localhost:2181/hbase", "driver": "org.apache.phoenix.jdbc.PhoenixDriver", "user": "", "password": ""}'
+
+**Note**: Currently, the Phoenix JDBC connector for Hue only supports read-only operations (SELECT and EXPLAIN statements).
 
 ### AWS Redshift
 
