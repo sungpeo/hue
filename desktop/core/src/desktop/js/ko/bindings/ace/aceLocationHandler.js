@@ -384,7 +384,6 @@ class AceLocationHandler {
                     catalogEntry: entry
                   },
                   pinEnabled: true,
-                  connector: self.snippet.connector(),
                   source: source
                 });
               })
@@ -402,7 +401,6 @@ class AceLocationHandler {
                     storageEntry: entry,
                     editorLocation: token.parseLocation.location
                   },
-                  connector: self.snippet.connector(),
                   pinEnabled: true,
                   source: source
                 });
@@ -410,7 +408,6 @@ class AceLocationHandler {
             } else {
               huePubSub.publish('context.popover.show', {
                 data: token.parseLocation,
-                connector: self.snippet.connector(),
                 sourceType: self.dialect(),
                 namespace: self.snippet.namespace(),
                 compute: self.snippet.compute(),
