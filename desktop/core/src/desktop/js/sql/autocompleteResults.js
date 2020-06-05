@@ -29,7 +29,7 @@ import { matchesType } from 'sql/reference/typeUtils';
 import { DIALECT } from 'apps/notebook2/snippet';
 import { cancelActiveRequest } from 'api/apiUtils';
 import { findBrowserConnector, getRootFilePath } from 'utils/hueConfig';
-import { getArgumentTypes, getFunctionsWithReturnTypes } from './reference/sqlReferenceRepository';
+import { getArgumentTypes } from './reference/sqlReferenceRepository';
 
 const normalizedColors = HueColors.getNormalizedColors();
 
@@ -476,7 +476,7 @@ class AutocompleteResults {
     self.handleColumnAliases();
     self.handleCommonTableExpressions();
     self.handleOptions();
-    self.activeDeferrals.push(self.handleFunctions(colRefDeferred));
+    self.handleFunctions(colRefDeferred);
     self.handleDatabases(databasesDeferred);
     const tablesDeferred = self.handleTables(databasesDeferred);
     self.activeDeferrals.push(tablesDeferred);
@@ -721,7 +721,6 @@ class AutocompleteResults {
 
   handleFunctions(colRefDeferred) {
     const self = this;
-    const functionsDeferred = $.Deferred();
     if (self.parseResult.suggestFunctions) {
       const functionSuggestions = [];
       if (
@@ -730,71 +729,61 @@ class AutocompleteResults {
       ) {
         initLoading(self.loadingFunctions, colRefDeferred);
 
-        colRefDeferred
-          .done(async colRef => {
-            const functionsToSuggest = await getFunctionsWithReturnTypes(
-              self.snippet.connector(),
-              [colRef.type.toUpperCase()],
-              self.parseResult.suggestAggregateFunctions || false,
-              self.parseResult.suggestAnalyticFunctions || false
-            );
+        colRefDeferred.done(colRef => {
+          const functionsToSuggest = SqlFunctions.getFunctionsWithReturnTypes(
+            self.dialect(),
+            [colRef.type.toUpperCase()],
+            self.parseResult.suggestAggregateFunctions || false,
+            self.parseResult.suggestAnalyticFunctions || false
+          );
 
-            Object.keys(functionsToSuggest).forEach(name => {
-              functionSuggestions.push({
-                category: CATEGORIES.UDF,
-                value: name + '()',
-                meta: functionsToSuggest[name].returnTypes.join('|'),
-                weightAdjust:
-                  colRef.type.toUpperCase() !== 'T' &&
-                  functionsToSuggest[name].returnTypes.some(otherType => {
-                    return otherType === colRef.type.toUpperCase();
-                  })
-                    ? 1
-                    : 0,
-                popular: ko.observable(false),
-                details: functionsToSuggest[name]
-              });
+          Object.keys(functionsToSuggest).forEach(name => {
+            functionSuggestions.push({
+              category: CATEGORIES.UDF,
+              value: name + '()',
+              meta: functionsToSuggest[name].returnTypes.join('|'),
+              weightAdjust:
+                colRef.type.toUpperCase() !== 'T' &&
+                functionsToSuggest[name].returnTypes.some(otherType => {
+                  return otherType === colRef.type.toUpperCase();
+                })
+                  ? 1
+                  : 0,
+              popular: ko.observable(false),
+              details: functionsToSuggest[name]
             });
+          });
 
-            self.appendEntries(functionSuggestions);
-            functionsDeferred.resolve();
-          })
-          .fail(functionsDeferred.reject);
+          self.appendEntries(functionSuggestions);
+        });
       } else {
         const types = self.parseResult.suggestFunctions.types || ['T'];
-
-        getFunctionsWithReturnTypes(
-          self.snippet.connector(),
+        const functionsToSuggest = SqlFunctions.getFunctionsWithReturnTypes(
+          self.dialect(),
           types,
           self.parseResult.suggestAggregateFunctions || false,
           self.parseResult.suggestAnalyticFunctions || false
-        )
-          .then(functionsToSuggest => {
-            Object.keys(functionsToSuggest).forEach(name => {
-              functionSuggestions.push({
-                category: CATEGORIES.UDF,
-                value: name + '()',
-                meta: functionsToSuggest[name].returnTypes.join('|'),
-                weightAdjust:
-                  types[0].toUpperCase() !== 'T' &&
-                  functionsToSuggest[name].returnTypes.some(otherType => {
-                    return otherType === types[0].toUpperCase();
-                  })
-                    ? 1
-                    : 0,
-                popular: ko.observable(false),
-                details: functionsToSuggest[name]
-              });
-            });
-            self.appendEntries(functionSuggestions);
-            functionsDeferred.resolve();
-          })
-          .catch(functionsDeferred.reject);
+        );
+
+        Object.keys(functionsToSuggest).forEach(name => {
+          functionSuggestions.push({
+            category: CATEGORIES.UDF,
+            value: name + '()',
+            meta: functionsToSuggest[name].returnTypes.join('|'),
+            weightAdjust:
+              types[0].toUpperCase() !== 'T' &&
+              functionsToSuggest[name].returnTypes.some(otherType => {
+                return otherType === types[0].toUpperCase();
+              })
+                ? 1
+                : 0,
+            popular: ko.observable(false),
+            details: functionsToSuggest[name]
+          });
+        });
+        self.appendEntries(functionSuggestions);
       }
-    } else {
-      functionsDeferred.resolve();
     }
-    return functionsDeferred;
   }
 
   handleDatabases(databasesDeferred) {

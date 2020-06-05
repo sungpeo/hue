@@ -22,8 +22,6 @@ import dataCatalog from 'catalog/dataCatalog';
 import huePubSub from 'utils/huePubSub';
 import I18n from 'utils/i18n';
 import LOTS_OF_PARSE_RESULTS from './test/lotsOfParseResults';
-import * as sqlReferenceRepository from 'sql/reference/sqlReferenceRepository';
-import { defer } from '../utils/hueUtils';
 
 describe('AutocompleteResults.js', () => {
   const failResponse = {
@@ -341,34 +339,16 @@ describe('AutocompleteResults.js', () => {
     expect(subject.filtered()[1].value).toBe('foo');
   });
 
-  it('should handle parse results with functions', async () => {
+  it('should handle parse results with functions', () => {
     subject.entries([]);
 
-    const spy = spyOn(sqlReferenceRepository, 'getFunctionsWithReturnTypes').and.callFake(
-      async () =>
-        Promise.resolve({
-          count: {
-            returnTypes: ['BIGINT'],
-            arguments: [[{ type: 'T' }]],
-            signature: 'count(col)',
-            draggable: 'count()',
-            description: 'some desc'
-          }
-        })
-    );
-
     expect(subject.filtered().length).toBe(0);
-
-    await subject.update({
+    subject.update({
       lowerCase: false,
       suggestFunctions: {}
     });
 
-    await defer();
-
-    expect(spy).toHaveBeenCalled();
-
-    expect(subject.filtered().length).toEqual(1);
+    expect(subject.filtered().length).toBeGreaterThan(0);
     expect(subject.filtered()[0].details.arguments).toBeDefined();
     expect(subject.filtered()[0].details.signature).toBeDefined();
     expect(subject.filtered()[0].details.description).toBeDefined();

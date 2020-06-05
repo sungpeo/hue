@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { matchesType } from './typeUtils';
-
 const SET_REFS = {
   impala: async () => import(/* webpackChunkName: "impala-ref" */ './impala/setReference')
 };
@@ -50,31 +48,6 @@ export const findFunction = async (connector, functionName) => {
     }
   });
   return found;
-};
-
-export const getFunctionsWithReturnTypes = async (
-  connector,
-  returnTypes,
-  includeAggregate,
-  includeAnalytic
-) => {
-  const categories = await getUdfCategories(connector);
-  const result = {};
-  categories.forEach(category => {
-    if (
-      (!category.isAnalytic && !category.isAggregate) ||
-      (includeAggregate && category.isAggregate) ||
-      (includeAnalytic && category.isAnalytic)
-    ) {
-      Object.keys(category.functions).forEach(udfName => {
-        const udf = category.functions[udfName];
-        if (!returnTypes || matchesType(connector, returnTypes, udf.returnTypes)) {
-          result[udfName] = udf;
-        }
-      });
-    }
-  });
-  return result;
 };
 
 export const getArgumentTypes = async (connector, functionName, argumentPosition) => {
