@@ -22,15 +22,7 @@ This section goes into greater detail on how to build and reuse the components o
 
 Build once:
 
-    # If you are using Python 3.5+, set PYTHON_VER before the build, like
-    export PYTHON_VER=python3.8
-
-    # Mac user might need to set
-    export SKIP_PYTHONDEV_CHECK=true
-
     make apps
-
-[Dependencies documentation](/administrator/installation/dependencies/) must help in troubleshooting build issues.
 
 Then start the dev server (which will auto reload):
 
@@ -40,15 +32,10 @@ If you are changing Javascript or CSS files, also start:
 
     npm run dev
 
-### Connecting Database
+Then it is recommended to use MySQL or PostGres as the database.
 
-Once build, you need to connect Hue to a database to start running queries. It is recommended to use MySQL or PostGres for development. Refer [connectors documentation](/administrator/configuration/connectors/) for other supported databases.
-
-#### Configure MySQL
-
-Open the `desktop/conf/pseudo-distributed.ini` file in a text editor. Add the following options (and modify accordingly) for your MySQL setup:
-
-Directly below the `[[database]]` line, add the following.
+Open the `hue.ini` file in a text editor. Directly below the `[[database]]` line, add the following options (and modify accordingly for
+your MySQL setup):
 
     host=localhost
     port=3306
@@ -56,13 +43,6 @@ Directly below the `[[database]]` line, add the following.
     user=hue
     password=secretpassword
     name=hue
-
-Below the `[[interpreters]]` of `[notebook]`.
-
-    [[[mysql]]]
-    name=MySQL
-    interface=sqlalchemy
-    options='{"url": "mysql://${USER}:${PASSWORD}@localhost:3306/hue"}'
 
 ### Dev environment
 
