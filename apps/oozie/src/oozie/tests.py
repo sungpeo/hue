@@ -283,9 +283,6 @@ class MockFs(object):
         self.isDir = True
     return MockWebHdfsStat()
 
-  def filebrowser_action(self):
-    return None
-
 
 class OozieMockBase(object):
 
