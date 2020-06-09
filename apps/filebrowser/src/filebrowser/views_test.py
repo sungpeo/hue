@@ -1099,6 +1099,9 @@ alert("XSS")
         pass
 
   def test_extract_zip(self):
+    if not is_oozie_enabled():
+      raise SkipTest
+
     ENABLE_EXTRACT_UPLOADED_ARCHIVE.set_for_testing(True)
     prefix = self.cluster.fs_prefix + '/test_upload_zip'
     self.cluster.fs.mkdir(prefix)
@@ -1175,6 +1178,9 @@ alert("XSS")
 
 
   def test_extract_tgz(self):
+    if not is_oozie_enabled():
+      raise SkipTest
+
     ENABLE_EXTRACT_UPLOADED_ARCHIVE.set_for_testing(True)
     prefix = self.cluster.fs_prefix + '/test_upload_tgz'
     self.cluster.fs.mkdir(prefix)
@@ -1207,6 +1213,9 @@ alert("XSS")
 
 
   def test_extract_bz2(self):
+    if not is_oozie_enabled():
+      raise SkipTest
+
     ENABLE_EXTRACT_UPLOADED_ARCHIVE.set_for_testing(True)
     prefix = self.cluster.fs_prefix + '/test_upload_bz2'
 
