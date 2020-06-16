@@ -95,6 +95,7 @@ class OozieServerProvider(object):
   @classmethod
   def _write_oozie_site(cls, cluster):
     oozie_configs = {
+      'oozie.http.port': OozieServerProvider.OOZIE_TEST_PORT,
       'oozie.service.ProxyUserService.proxyuser.hue.hosts': '*',
       'oozie.service.ProxyUserService.proxyuser.hue.groups': '*',
       'oozie.service.HadoopAccessorService.hadoop.configurations': '*=%s' % cluster._tmppath('conf'),
@@ -134,7 +135,6 @@ class OozieServerProvider(object):
     args = [OozieServerProvider.OOZIE_HOME + '/bin/oozied.sh', 'run']
     env = os.environ
     env['OOZIE_DATA'] = cluster._tmppath('oozie_tmp_dir')
-    env['OOZIE_HTTP_PORT'] = OozieServerProvider.OOZIE_TEST_PORT
     conf_dir = os.path.join(cluster.log_dir, 'oozie')
     os.mkdir(conf_dir)
     env['OOZIE_LOG'] = conf_dir
